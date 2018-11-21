@@ -3,13 +3,14 @@ package oauth2
 import (
 	"encoding/gob"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	log "github.com/panjiang/golog"
 )
 
 // Config 777bingo平台OAuth2.0参数配置
@@ -41,6 +42,11 @@ type Error struct {
 	Description string `json:"error_description"`
 }
 
+// Message 错误内容
+func (e *Error) Message() string {
+	return fmt.Sprintf("%s: %s", e.Error, e.Description)
+}
+
 // Token 令牌数据
 type Token struct {
 	*Error
@@ -55,7 +61,7 @@ type Profile struct {
 	*Error
 	Code     int    `json:"code"`
 	ID       int64  `json:"id"`
-	Username string `json:"username"`
+	Nickname string `json:"nickname"`
 	Email    string `json:"email"`
 	Phone    string `json:"phone"`
 }
@@ -74,6 +80,7 @@ func httpGet(url string) ([]byte, error) {
 		return nil, err
 	}
 	body, err := ioutil.ReadAll(res.Body)
+	log.Debugf("body: %s", body)
 
 	// 错误
 	if res.StatusCode != http.StatusOK {
@@ -85,9 +92,6 @@ func httpGet(url string) ([]byte, error) {
 
 // GetToken 获取Token
 func GetToken(code string, conf *Config) (*Token, error) {
-	if conf == nil {
-		return nil, errors.New("null config")
-	}
 	// Request token with code and client_secret
 	search := url.Values{}
 	search.Set("grant_type", "authorization_code")
@@ -111,7 +115,7 @@ func GetToken(code string, conf *Config) (*Token, error) {
 	}
 
 	if token.Error != nil {
-		return nil, fmt.Errorf("Get token failed, %s: %s", token.Error.Error, token.Error.Description)
+		return nil, fmt.Errorf("Get token failed: %s", token.Error.Message())
 	}
 
 	return &token, nil
@@ -130,7 +134,7 @@ func GetProfile(conf *Config, accessToken string) (*Profile, error) {
 	}
 
 	if profile.Error != nil {
-		return nil, fmt.Errorf("Get profile failed, %s: %s", profile.Error.Error, profile.Error.Description)
+		return nil, fmt.Errorf("Get profile failed: %s", profile.Error.Message())
 	}
 
 	return &profile, nil
@@ -149,7 +153,7 @@ func GetWallet(conf *Config, accessToken string) (*Wallet, error) {
 	}
 
 	if wallet.Error != nil {
-		return nil, fmt.Errorf("Get wallet failed, %s: %s", wallet.Error.Error, wallet.Description)
+		return nil, fmt.Errorf("Get wallet failed: %s", wallet.Error.Message())
 	}
 
 	return &wallet, nil
@@ -157,5 +161,5 @@ func GetWallet(conf *Config, accessToken string) (*Wallet, error) {
 
 func init() {
 	// 注册新gob类型，以便session解析
-	gob.Register(Token{})
+	gob.Register(new(Token))
 }
