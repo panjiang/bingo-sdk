@@ -9,12 +9,11 @@ import (
 	"net/url"
 	"strings"
 	"time"
-
-	log "github.com/panjiang/golog"
 )
 
 // Config 777bingo平台OAuth2.0参数配置
 type Config struct {
+	Currency     string `json:"currency"`
 	PlatformHost string `json:"platform_host"`
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
@@ -33,7 +32,7 @@ func (c *Config) GetProfileURL(accessToken string) string {
 
 // GetWalletURL 获取钱包数据的URL
 func (c *Config) GetWalletURL(accessToken string) string {
-	return c.PlatformHost + fmt.Sprintf("/oauth2/v1/wallet?access_token=%s&type=qtum", accessToken)
+	return c.PlatformHost + fmt.Sprintf("/oauth2/v1/wallet?access_token=%s&type=%s", accessToken, c.Currency)
 }
 
 // Error 错误数据
@@ -70,7 +69,8 @@ type Profile struct {
 type Wallet struct {
 	*Error
 	Code    int     `json:"code"`
-	Address string  `json:"address"`
+	Account string  `json:"account"` // ""/EOS 账号
+	Address string  `json:"address"` // address/EOS memo
 	Balance float64 `json:"balance"`
 }
 
@@ -80,7 +80,6 @@ func httpGet(url string) ([]byte, error) {
 		return nil, err
 	}
 	body, err := ioutil.ReadAll(res.Body)
-	log.Debugf("body: %s", body)
 
 	// 错误
 	if res.StatusCode != http.StatusOK {
